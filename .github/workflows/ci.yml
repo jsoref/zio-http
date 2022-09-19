@@ -160,6 +160,7 @@ jobs:
           CI_SONATYPE_RELEASE: ${{ secrets.CI_SONATYPE_RELEASE }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
+        if: env.PGP_PASSPHRASE && env.SONATYPE_PASSWORD && env.CI_SONATYPE_RELEASE && env.PGP_SECRET
         run: sbt ++${{ matrix.scala }} ci-release
 
   update_release_draft:
@@ -174,9 +175,23 @@ jobs:
     steps:
       - uses: release-drafter/release-drafter@v5
 
+  secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      actions: ${{ steps.secrets.outputs.secrets }}
+    steps:
+      - name: secrets
+        id: secrets
+        shell: bash
+        env:
+          ACTIONS_PAT: ${{ secrets.ACTIONS_PAT != '' }}
+        if: env.ACTIONS_PATH == 'true'
+        run: echo ::set-output name=secrets::true
+
   update_docs:
     name: Publish Documentation
-    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: secrets
+    if: ${{ github.ref == 'refs/heads/main' && needs.secrets.outputs.secrets }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -233,7 +248,8 @@ jobs:
 
   runBenchMarks:
     name: Benchmarks
-    if: ${{ github.event_name == 'pull_request'}}
+    needs: secrets
+    if: ${{ github.event_name == 'pull_request' && needs.secrets.outputs.secrets }}
     strategy:
       matrix:
         os: [centos]
@@ -243,8 +259,6 @@ jobs:
     steps:
       - name: Clean up
         id: clean_up
-        env:
-          GITHUB_TOKEN: ${{secrets.ACTIONS_PAT}}
         run: sudo rm -rf *
 
       - uses: actions/checkout@v2
