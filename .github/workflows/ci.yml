@@ -64,6 +64,7 @@ jobs:
         run: sbt ++2.13.8 fmtCheck
 
       - name: Check that workflows are up to date
+        if: false
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - name: Build project
